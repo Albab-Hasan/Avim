@@ -5,7 +5,6 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub struct NormalMode {
     pending_operator: Option<char>,
-    count: Option<usize>,
     yank_register: Vec<String>,
     operator: Option<Operator>,
 }
@@ -29,7 +28,6 @@ impl NormalMode {
     pub fn new() -> Self {
         Self {
             pending_operator: None,
-            count: None,
             yank_register: Vec::new(),
             operator: None,
         }
