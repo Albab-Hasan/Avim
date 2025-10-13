@@ -36,11 +36,30 @@ cargo install --path .
 ```
 Then you can run `avim` from anywhere.
 
+## Quick Example
+
+```bash
+# Create and edit a new Python file
+avim hello.py
+
+# Type the following in insert mode (press 'i'):
+def greet(name):
+    print(f"Hello, {name}!")
+
+# Features you'll see:
+# - Syntax highlighting with colors
+# - Auto-closing brackets when you type (
+# - Smart indentation when you press Enter
+# - Tab inserts 4 spaces
+# - Smart bracket deletion with Backspace
+```
+
 ## Implemented Features
 
+### Core Editor Features
 - Modal editing (Normal, Insert, Visual, Command modes)
 - Basic cursor movement (h, j, k, l, w, b, 0, $, gg, G)
-- File I/O (open, save, save as)
+- File I/O (open, save, save as, create new files)
 - Text editing (insert, delete, yank, paste)
 - Line operations (dd, yy, cc, o, O)
 - Motion-based operations (dw, d$, cw, c$, yw, y$)
@@ -51,6 +70,24 @@ Then you can run `avim` from anywhere.
 - Search (/, ?, n, N) with forward and backward search
 - Line numbers display
 - Join lines (J)
+
+### Advanced Features
+- **Syntax Highlighting**: Full syntax highlighting using syntect with true color (24-bit RGB) support
+  - Supports Rust, Python, JavaScript, C/C++, and many other languages
+  - Automatic language detection from file extensions
+  - Professional color themes with graceful fallback
+- **Smart Indentation**: 
+  - Tab key inserts 4 spaces
+  - Auto-indentation preservation on new lines
+  - Extra indentation after opening brackets/braces
+- **Auto-Closing Brackets**: 
+  - Automatically closes `()`, `[]`, `{}`, `""`, `''`, `` ` ` ``
+  - Smart bracket deletion (removes both when deleting opening bracket if empty)
+  - Cursor positioning between auto-closed brackets
+- **Performance Optimized**:
+  - Batched screen rendering for smooth performance
+  - Efficient syntax highlighting integration
+  - Real-time text editing with instant visual feedback
 
 ## Usage Guide
 
@@ -94,9 +131,13 @@ Then you can run `avim` from anywhere.
 
 ### Insert Mode
 - `Esc` - Return to normal mode
-- `Backspace` - Delete character before cursor
-- `Enter` - Insert newline
+- `Backspace` - Delete character before cursor (smart bracket deletion)
+- `Enter` - Insert newline with auto-indentation
+- `Tab` - Insert 4 spaces for indentation
 - Arrow keys - Move cursor
+- **Auto-closing brackets**: Type `(`, `[`, `{`, `"`, `'`, or `` ` `` to auto-close
+- **Smart bracket deletion**: Delete opening bracket to remove both if empty
+- **Auto-indentation**: Extra indentation after `{`, `(`, `[` when pressing Enter
 
 ### Visual Mode
 - `h,j,k,l` - Extend selection
@@ -112,12 +153,33 @@ Then you can run `avim` from anywhere.
 - `:w filename` - Save as filename
 - `:e filename` - Edit a different file
 
+## Technical Details
+
+### Dependencies
+- `crossterm` - Cross-platform terminal manipulation
+- `syntect` - Syntax highlighting engine
+- `ropey` - Efficient text rope data structure
+- `unicode-segmentation` - Unicode text processing
+
+### Performance Features
+- Optimized rendering with batched screen updates
+- Efficient syntax highlighting with syntect
+- Smart bracket color normalization
+- Real-time text editing with minimal latency
+
+### Terminal Support
+- True color (24-bit RGB) support for modern terminals
+- Graceful fallback for older terminals
+- Cross-platform compatibility (Windows, macOS, Linux)
+- Works with Windows Terminal, iTerm2, and modern Linux terminals
+
 ## TODO
 
-- Replace functionality
-- Syntax highlighting
 - Window splits and multiple buffers
-- Configuration system
+- Configuration system with themes and keybindings
 - Advanced text objects and motions
 - Macros and registers
 - Block visual mode
+- Replace functionality
+- Plugin system
+- LSP integration
