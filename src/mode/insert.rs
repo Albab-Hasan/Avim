@@ -27,10 +27,23 @@ impl InsertMode {
             KeyCode::Char(c) => {
                 // Handle auto-closing brackets and parentheses
                 if let Some(closing_char) = Self::get_closing_char(c) {
-                    buffer.insert_char(cursor.line, cursor.col, c);
-                    buffer.insert_char(cursor.line, cursor.col + 1, closing_char);
-                    cursor.col += 1;
-                    cursor.desired_col = cursor.col;
+                    let current_line = buffer.get_line(cursor.line).map_or("", |v| v);
+                    
+                    // Check if we're typing a closing bracket that matches an auto-inserted one
+                    if cursor.col < current_line.len() && current_line.chars().nth(cursor.col) == Some(closing_char) {
+                        // Just move cursor past the existing closing bracket
+                        cursor.col += 1;
+                        cursor.desired_col = cursor.col;
+                    } else {
+                        // Insert opening bracket and auto-close
+                        buffer.insert_char(cursor.line, cursor.col, c);
+                        buffer.insert_char(cursor.line, cursor.col + 1, closing_char);
+                        cursor.col += 1;
+                        cursor.desired_col = cursor.col;
+                        
+                        // Force a re-render to ensure consistent highlighting
+                        // This will be handled by the editor's render loop
+                    }
                 } else {
                     buffer.insert_char(cursor.line, cursor.col, c);
                     cursor.col += 1;

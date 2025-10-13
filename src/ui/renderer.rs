@@ -139,12 +139,26 @@ impl Renderer {
                         // Ensure we're using the current line content
                         let current_line = buffer.get_line(line_idx).map_or("", |v| v);
                         let mut char_pos = 0;
+                        let mut bracket_style = None;
+                        
                         for (style, text) in highlighted {
                             // Make sure we don't exceed the current line length
                             if char_pos < current_line.len() {
                                 let end_pos = (char_pos + text.len()).min(current_line.len());
                                 let actual_text = &current_line[char_pos..end_pos];
-                                screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
+                                
+                                // Check if this segment contains brackets and normalize their color
+                                let normalized_style = if Self::contains_brackets(actual_text) {
+                                    // Use a consistent color for brackets
+                                    if bracket_style.is_none() {
+                                        bracket_style = Some(style);
+                                    }
+                                    bracket_style.unwrap_or(style)
+                                } else {
+                                    style
+                                };
+                                
+                                screen_buffer.push_str(&Self::rgb_to_ansi(normalized_style.foreground));
                                 screen_buffer.push_str(actual_text);
                                 screen_buffer.push_str("\x1b[0m");
                                 char_pos = end_pos;
@@ -240,6 +254,10 @@ impl Renderer {
     
     fn rgb_to_ansi(color: SyntectColor) -> String {
         format!("\x1b[38;2;{};{};{}m", color.r, color.g, color.b)
+    }
+    
+    fn contains_brackets(text: &str) -> bool {
+        text.chars().any(|c| matches!(c, '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\'' | '`'))
     }
     
 
