@@ -122,9 +122,12 @@ impl Buffer {
 
     pub fn join_lines(&mut self, line: usize) {
         if line < self.lines.len() - 1 {
+            self.save_state(line, self.lines[line].len());
             let next_line = self.lines.remove(line + 1);
-            self.lines[line].push(' ');
-            self.lines[line].push_str(&next_line);
+            if !self.lines[line].is_empty() && !next_line.is_empty() {
+                self.lines[line].push(' ');
+            }
+            self.lines[line].push_str(&next_line.trim_start());
             self.modified = true;
         }
     }

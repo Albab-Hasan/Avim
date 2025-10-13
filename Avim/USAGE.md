@@ -21,8 +21,10 @@ cargo run --release -- test.txt  # Open a file
 - `x` - Delete character under cursor
 - `dd` - Delete current line
 - `yy` - Yank (copy) current line
+- `cc` - Change (delete and enter insert mode) current line
 - `p` - Paste below current line
 - `P` - Paste above current line
+- `J` - Join current line with next line
 - `i` - Enter insert mode before cursor
 - `a` - Enter insert mode after cursor
 - `I` - Enter insert mode at line start

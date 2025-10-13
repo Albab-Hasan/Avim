@@ -94,6 +94,25 @@ impl NormalMode {
             KeyCode::Char('x') => {
                 buffer.delete_char(cursor.line, cursor.col);
             }
+            KeyCode::Char('J') => {
+                // Join lines
+                buffer.join_lines(cursor.line);
+            }
+            KeyCode::Char('c') => {
+                if self.pending_operator == Some('c') {
+                    // cc - change line
+                    if let Some(_line) = buffer.delete_line(cursor.line) {
+                        buffer.insert_newline(cursor.line.saturating_sub(1), 
+                            buffer.get_line(cursor.line.saturating_sub(1)).map(|l| l.len()).unwrap_or(0));
+                        cursor.col = 0;
+                        cursor.desired_col = 0;
+                    }
+                    self.pending_operator = None;
+                    return NormalAction::ModeChange(Mode::Insert);
+                } else {
+                    self.pending_operator = Some('c');
+                }
+            }
             KeyCode::Char('d') => {
                 if self.pending_operator == Some('d') {
                     // dd - delete line

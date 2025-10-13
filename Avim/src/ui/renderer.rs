@@ -66,12 +66,22 @@ impl Renderer {
 
         // Render buffer lines
         let visible_lines = (height as usize).saturating_sub(2);
+        let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
+        
         for row in 0..visible_lines {
             let line_idx = viewport_offset + row;
             
             execute!(self.stdout, cursor::MoveTo(0, row as u16))?;
 
             if line_idx < buffer.line_count() {
+                // Render line number
+                execute!(
+                    self.stdout,
+                    SetForegroundColor(Color::DarkYellow),
+                    Print(format!("{:>width$} ", line_idx + 1, width = line_num_width as usize - 1)),
+                    ResetColor
+                )?;
+                
                 if let Some(line) = buffer.get_line(line_idx) {
                     // Check if this line is in visual selection
                     if let Some(visual) = visual_mode {
@@ -104,7 +114,7 @@ impl Renderer {
                 execute!(
                     self.stdout,
                     SetForegroundColor(Color::DarkBlue),
-                    Print("~"),
+                    Print(format!("{:>width$} ~", "", width = line_num_width as usize - 1)),
                     ResetColor
                 )?;
             }
@@ -127,9 +137,10 @@ impl Renderer {
             execute!(self.stdout, Print(msg))?;
         }
 
-        // Position cursor
+        // Position cursor (accounting for line numbers)
         let screen_row = cursor.line.saturating_sub(viewport_offset);
-        let screen_col = cursor.col.min((width as usize).saturating_sub(1));
+        let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
+        let screen_col = (cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
         
         execute!(
             self.stdout,

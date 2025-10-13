@@ -13,8 +13,9 @@ Terminal-based modal text editor.
 - Command mode (:w, :q, :wq, :e)
 - Status line with mode indicator and file information
 - Undo/redo (u, Ctrl+r)
-
 - Search (/, n, N)
+- Line numbers display
+- Join lines (J)
 
 ## TODO
 - Replace functionality
