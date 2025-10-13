@@ -47,9 +47,29 @@ impl InsertMode {
             }
             KeyCode::Backspace => {
                 if cursor.col > 0 {
-                    cursor.col -= 1;
-                    buffer.delete_char(cursor.line, cursor.col);
-                    cursor.desired_col = cursor.col;
+                    let current_line = buffer.get_line(cursor.line).map_or("", |v| v);
+                    
+                    // Check for smart bracket deletion
+                    if let Some(closing_char) = Self::get_closing_char_for_deletion(current_line, cursor.col - 1) {
+                        // Check if the next character is the matching closing bracket
+                        if cursor.col < current_line.len() && current_line.chars().nth(cursor.col) == Some(closing_char) {
+                            // Delete both opening and closing brackets
+                            buffer.delete_char(cursor.line, cursor.col - 1);
+                            buffer.delete_char(cursor.line, cursor.col - 1);
+                            cursor.col -= 1;
+                            cursor.desired_col = cursor.col;
+                        } else {
+                            // Normal backspace
+                            buffer.delete_char(cursor.line, cursor.col - 1);
+                            cursor.col -= 1;
+                            cursor.desired_col = cursor.col;
+                        }
+                    } else {
+                        // Normal backspace
+                        buffer.delete_char(cursor.line, cursor.col - 1);
+                        cursor.col -= 1;
+                        cursor.desired_col = cursor.col;
+                    }
                 } else if cursor.line > 0 {
                     // Join with previous line
                     if let Some(prev_line) = buffer.get_line(cursor.line - 1) {
@@ -64,7 +84,18 @@ impl InsertMode {
             KeyCode::Enter => {
                 // Get current line to determine indentation
                 let current_line = buffer.get_line(cursor.line).map_or("", |v| v);
-                let indent = Self::get_line_indent(current_line);
+                let base_indent = Self::get_line_indent(current_line);
+                
+                // Check if we're after an opening bracket/brace for auto-indent
+                let extra_indent = if cursor.col > 0 {
+                    let char_before = current_line.chars().nth(cursor.col - 1);
+                    match char_before {
+                        Some('{') | Some('(') | Some('[') => 4, // Add extra indentation
+                        _ => 0,
+                    }
+                } else {
+                    0
+                };
                 
                 buffer.insert_newline(cursor.line, cursor.col);
                 cursor.line += 1;
@@ -72,7 +103,8 @@ impl InsertMode {
                 cursor.desired_col = 0;
                 
                 // Add indentation to the new line
-                for _ in 0..indent {
+                let total_indent = base_indent + extra_indent;
+                for _ in 0..total_indent {
                     buffer.insert_char(cursor.line, cursor.col, ' ');
                     cursor.col += 1;
                 }
@@ -109,6 +141,22 @@ impl InsertMode {
             }
         }
         indent
+    }
+    
+    fn get_closing_char_for_deletion(line: &str, pos: usize) -> Option<char> {
+        if let Some(char_at_pos) = line.chars().nth(pos) {
+            match char_at_pos {
+                '(' => Some(')'),
+                '[' => Some(']'),
+                '{' => Some('}'),
+                '"' => Some('"'),
+                '\'' => Some('\''),
+                '`' => Some('`'),
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 }
 
