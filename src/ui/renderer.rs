@@ -70,11 +70,8 @@ impl Renderer {
             self.needs_full_redraw = true;
         }
 
-        // Only clear screen if necessary
-        if self.needs_full_redraw {
-            execute!(self.stdout, terminal::Clear(ClearType::All))?;
-            self.needs_full_redraw = false;
-        }
+        // Always clear screen to ensure clean rendering
+        execute!(self.stdout, terminal::Clear(ClearType::All))?;
 
         // Render buffer lines with optimized output
         let visible_lines = (height as usize).saturating_sub(2);
@@ -139,10 +136,23 @@ impl Renderer {
                         // Fallback for empty lines or no highlighting
                         screen_buffer.push_str(line);
                     } else {
+                        // Ensure we're using the current line content
+                        let current_line = buffer.get_line(line_idx).map_or("", |v| v);
+                        let mut char_pos = 0;
                         for (style, text) in highlighted {
-                            screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
-                            screen_buffer.push_str(&text);
-                            screen_buffer.push_str("\x1b[0m");
+                            // Make sure we don't exceed the current line length
+                            if char_pos < current_line.len() {
+                                let end_pos = (char_pos + text.len()).min(current_line.len());
+                                let actual_text = &current_line[char_pos..end_pos];
+                                screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
+                                screen_buffer.push_str(actual_text);
+                                screen_buffer.push_str("\x1b[0m");
+                                char_pos = end_pos;
+                            }
+                        }
+                        // Add any remaining characters that weren't highlighted
+                        if char_pos < current_line.len() {
+                            screen_buffer.push_str(&current_line[char_pos..]);
                         }
                     }
                 }
