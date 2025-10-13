@@ -1,0 +1,11 @@
+C:\Users\albab\Documents\Projects\avim\Avim\target\debug\deps\str_indices-13746623153024f8.d: C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lib.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\byte_chunk.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\chars.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_crlf.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_lf.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\utf16.rs
+
+C:\Users\albab\Documents\Projects\avim\Avim\target\debug\deps\libstr_indices-13746623153024f8.rmeta: C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lib.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\byte_chunk.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\chars.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_crlf.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_lf.rs C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\utf16.rs
+
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lib.rs:
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\byte_chunk.rs:
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\chars.rs:
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines.rs:
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_crlf.rs:
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\lines_lf.rs:
+C:\Users\albab\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\str_indices-0.4.4\src\utf16.rs:
