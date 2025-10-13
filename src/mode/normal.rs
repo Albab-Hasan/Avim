@@ -49,11 +49,24 @@ impl NormalMode {
             return NormalAction::None;
         }
 
+
         match key.code {
-            KeyCode::Char('h') => cursor.move_left(buffer),
-            KeyCode::Char('j') => cursor.move_down(buffer),
-            KeyCode::Char('k') => cursor.move_up(buffer),
-            KeyCode::Char('l') => cursor.move_right(buffer),
+            KeyCode::Char('h') => {
+                cursor.move_left(buffer);
+                return NormalAction::None;
+            }
+            KeyCode::Char('j') => {
+                cursor.move_down(buffer);
+                return NormalAction::None;
+            }
+            KeyCode::Char('k') => {
+                cursor.move_up(buffer);
+                return NormalAction::None;
+            }
+            KeyCode::Char('l') => {
+                cursor.move_right(buffer);
+                return NormalAction::None;
+            }
             KeyCode::Char('i') => return NormalAction::ModeChange(Mode::Insert),
             KeyCode::Char('I') => {
                 cursor.move_line_start();

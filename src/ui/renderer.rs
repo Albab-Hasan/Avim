@@ -162,6 +162,11 @@ impl Renderer {
         let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
         let screen_col = (cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
         
+        // Ensure cursor is visible on screen
+        if screen_row >= visible_lines as u16 {
+            return Ok(());
+        }
+        
         // Update cursor position
         self.last_cursor = (cursor.line, cursor.col);
         
