@@ -38,9 +38,15 @@ impl Editor {
         let mut renderer = Renderer::new()?;
         renderer.enter()?;
 
+        let mut cursor = Cursor::new();
+        // Ensure cursor is within bounds
+        if let Some(first_line) = buffer.get_line(0) {
+            cursor.col = cursor.col.min(first_line.len());
+        }
+
         Ok(Self {
             buffer,
-            cursor: Cursor::new(),
+            cursor,
             mode: Mode::Normal,
             normal_mode: NormalMode::new(),
             visual_mode: None,

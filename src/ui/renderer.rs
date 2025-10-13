@@ -178,6 +178,7 @@ impl Renderer {
     pub fn force_redraw(&mut self) {
         self.needs_full_redraw = true;
     }
+    
 
     #[allow(dead_code)]
     fn render_line_with_highlight(&mut self, line: &str, start: usize, end: usize) -> io::Result<()> {
