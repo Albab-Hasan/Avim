@@ -13,7 +13,7 @@ pub struct NormalMode {
 pub enum NormalAction {
     None,
     ModeChange(Mode),
-    StartSearch,
+    StartSearch(bool), // true for forward, false for backward
     NextMatch,
     PrevMatch,
 }
@@ -241,7 +241,10 @@ impl NormalMode {
                 }
             }
             KeyCode::Char('/') => {
-                return NormalAction::StartSearch;
+                return NormalAction::StartSearch(true);
+            }
+            KeyCode::Char('?') => {
+                return NormalAction::StartSearch(false);
             }
             KeyCode::Char('n') => {
                 return NormalAction::NextMatch;

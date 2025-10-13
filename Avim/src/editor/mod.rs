@@ -62,7 +62,8 @@ impl Editor {
             self.update_viewport();
             
             let status_message = if self.in_search {
-                Some(format!("/{}", self.search_input))
+                let prefix = if self.search_state.forward { "/" } else { "?" };
+                Some(format!("{}{}", prefix, self.search_input))
             } else {
                 self.message.as_deref().map(|s| s.to_string())
             };
@@ -94,7 +95,8 @@ impl Editor {
                             self.search_input.clear();
                         }
                         KeyCode::Enter => {
-                            self.search_state.search(&self.buffer, &self.search_input, true);
+                            let forward = self.search_state.forward;
+                            self.search_state.search(&self.buffer, &self.search_input, forward);
                             if let Some((line, col)) = self.search_state.current() {
                                 self.cursor.line = line;
                                 self.cursor.col = col;
@@ -131,9 +133,10 @@ impl Editor {
                                     self.visual_mode = Some(VisualMode::new(vtype, &self.cursor));
                                 }
                             }
-                            NormalAction::StartSearch => {
+                            NormalAction::StartSearch(forward) => {
                                 self.in_search = true;
                                 self.search_input.clear();
+                                self.search_state.forward = forward;
                             }
                             NormalAction::NextMatch => {
                                 if let Some((line, col)) = self.search_state.next_match() {
