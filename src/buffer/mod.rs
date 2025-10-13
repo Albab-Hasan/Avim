@@ -232,10 +232,15 @@ impl Buffer {
     pub fn highlight_line(&self, line_idx: usize) -> Vec<(Style, String)> {
         if let Some(line) = self.get_line(line_idx) {
             if let Some(ref syntax_name) = self.syntax_name {
-                self.highlighter.highlight_line(line, syntax_name)
-                    .into_iter()
-                    .map(|(style, text)| (style, text.to_string()))
-                    .collect()
+                let highlighted = self.highlighter.highlight_line(line, syntax_name);
+                if highlighted.is_empty() {
+                    // Fallback if highlighting returns empty
+                    vec![(Style::default(), line.clone())]
+                } else {
+                    highlighted.into_iter()
+                        .map(|(style, text)| (style, text.to_string()))
+                        .collect()
+                }
             } else {
                 vec![(Style::default(), line.clone())]
             }

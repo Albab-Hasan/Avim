@@ -135,10 +135,15 @@ impl Renderer {
                     
                     // Apply syntax highlighting to the line
                     let highlighted = buffer.highlight_line(line_idx);
-                    for (style, text) in highlighted {
-                        screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
-                        screen_buffer.push_str(&text);
-                        screen_buffer.push_str("\x1b[0m");
+                    if highlighted.is_empty() {
+                        // Fallback for empty lines or no highlighting
+                        screen_buffer.push_str(line);
+                    } else {
+                        for (style, text) in highlighted {
+                            screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
+                            screen_buffer.push_str(&text);
+                            screen_buffer.push_str("\x1b[0m");
+                        }
                     }
                 }
             } else {
