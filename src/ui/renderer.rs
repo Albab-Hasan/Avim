@@ -15,6 +15,8 @@ pub struct Renderer {
     stdout: Stdout,
     width: u16,
     height: u16,
+    last_cursor: (usize, usize),
+    needs_full_redraw: bool,
 }
 
 impl Renderer {
@@ -24,6 +26,8 @@ impl Renderer {
             stdout: io::stdout(),
             width,
             height,
+            last_cursor: (0, 0),
+            needs_full_redraw: true,
         })
     }
 
@@ -59,10 +63,17 @@ impl Renderer {
     ) -> io::Result<()> {
         // Update terminal size
         let (width, height) = terminal::size()?;
-        self.width = width;
-        self.height = height;
+        if self.width != width || self.height != height {
+            self.width = width;
+            self.height = height;
+            self.needs_full_redraw = true;
+        }
 
-        execute!(self.stdout, terminal::Clear(ClearType::All))?;
+        // Only clear screen if necessary
+        if self.needs_full_redraw {
+            execute!(self.stdout, terminal::Clear(ClearType::All))?;
+            self.needs_full_redraw = false;
+        }
 
         // Render buffer lines
         let visible_lines = (height as usize).saturating_sub(2);
@@ -142,6 +153,9 @@ impl Renderer {
         let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
         let screen_col = (cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
         
+        // Update cursor position
+        self.last_cursor = (cursor.line, cursor.col);
+        
         execute!(
             self.stdout,
             cursor::MoveTo(screen_col as u16, screen_row as u16),
@@ -150,6 +164,10 @@ impl Renderer {
 
         self.stdout.flush()?;
         Ok(())
+    }
+    
+    pub fn force_redraw(&mut self) {
+        self.needs_full_redraw = true;
     }
 
     fn render_line_with_highlight(&mut self, line: &str, start: usize, end: usize) -> io::Result<()> {

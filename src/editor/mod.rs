@@ -77,6 +77,11 @@ impl Editor {
             )?;
 
             if let Event::Key(key) = event::read()? {
+                // Filter out key release events to prevent double input
+                if matches!(key.kind, crossterm::event::KeyEventKind::Release) {
+                    continue;
+                }
+                
                 self.message = None;
 
                 // Handle Ctrl+C for quit in any mode
