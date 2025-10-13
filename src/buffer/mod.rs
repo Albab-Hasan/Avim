@@ -36,7 +36,22 @@ impl Buffer {
     }
 
     pub fn from_file(path: &str) -> io::Result<Self> {
-        let content = fs::read_to_string(path)?;
+        // Try to read the file, but if it doesn't exist, create a new buffer with the path
+        let content = match fs::read_to_string(path) {
+            Ok(content) => content,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                // File doesn't exist, create new buffer with the path
+                return Ok(Self {
+                    lines: vec![String::new()],
+                    file_path: Some(PathBuf::from(path)),
+                    modified: false,
+                    undo_stack: Vec::new(),
+                    redo_stack: Vec::new(),
+                });
+            }
+            Err(e) => return Err(e), // Other errors (permission, etc.)
+        };
+
         let lines: Vec<String> = if content.is_empty() {
             vec![String::new()]
         } else {
