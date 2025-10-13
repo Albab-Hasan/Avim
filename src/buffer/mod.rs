@@ -4,6 +4,8 @@ mod line;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
+use crate::syntax::Highlighter;
+use syntect::highlighting::Style;
 
 pub use gap_buffer::GapBuffer;
 pub use line::Line;
@@ -15,6 +17,8 @@ pub struct Buffer {
     modified: bool,
     undo_stack: Vec<BufferState>,
     redo_stack: Vec<BufferState>,
+    highlighter: Highlighter,
+    syntax_name: Option<String>,
 }
 
 #[derive(Clone)]
@@ -32,10 +36,16 @@ impl Buffer {
             modified: false,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            highlighter: Highlighter::new(),
+            syntax_name: None,
         }
     }
 
     pub fn from_file(path: &str) -> io::Result<Self> {
+        let file_path = PathBuf::from(path);
+        let highlighter = Highlighter::new();
+        let syntax_name = highlighter.detect_syntax(&file_path);
+        
         // Try to read the file, but if it doesn't exist, create a new buffer with the path
         let content = match fs::read_to_string(path) {
             Ok(content) => content,
@@ -43,10 +53,12 @@ impl Buffer {
                 // File doesn't exist, create new buffer with the path
                 return Ok(Self {
                     lines: vec![String::new()],
-                    file_path: Some(PathBuf::from(path)),
+                    file_path: Some(file_path),
                     modified: false,
                     undo_stack: Vec::new(),
                     redo_stack: Vec::new(),
+                    highlighter,
+                    syntax_name,
                 });
             }
             Err(e) => return Err(e), // Other errors (permission, etc.)
@@ -60,10 +72,12 @@ impl Buffer {
 
         Ok(Self {
             lines,
-            file_path: Some(PathBuf::from(path)),
+            file_path: Some(file_path),
             modified: false,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            highlighter,
+            syntax_name,
         })
     }
 
@@ -213,6 +227,25 @@ impl Buffer {
         } else {
             None
         }
+    }
+
+    pub fn highlight_line(&self, line_idx: usize) -> Vec<(Style, String)> {
+        if let Some(line) = self.get_line(line_idx) {
+            if let Some(ref syntax_name) = self.syntax_name {
+                self.highlighter.highlight_line(line, syntax_name)
+                    .into_iter()
+                    .map(|(style, text)| (style, text.to_string()))
+                    .collect()
+            } else {
+                vec![(Style::default(), line.clone())]
+            }
+        } else {
+            vec![(Style::default(), String::new())]
+        }
+    }
+    
+    pub fn syntax_name(&self) -> Option<&str> {
+        self.syntax_name.as_deref()
     }
 }
 

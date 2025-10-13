@@ -10,6 +10,7 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 use std::io::{self, Write, Stdout};
+use syntect::highlighting::Color as SyntectColor;
 
 pub struct Renderer {
     stdout: Stdout,
@@ -99,27 +100,46 @@ impl Renderer {
                             let (start_line, start_col, end_line, end_col) = visual.get_selection(cursor);
                             
                             if line_idx >= start_line && line_idx <= end_line {
-                                // Highlight selected portion
-                                let chars: Vec<char> = line.chars().collect();
+                                // Highlight selected portion with syntax highlighting
+                                let highlighted = buffer.highlight_line(line_idx);
+                                let _chars: Vec<char> = line.chars().collect();
                                 if start_line == end_line {
-                                    for i in 0..chars.len() {
-                                        if i >= start_col && i <= end_col {
-                                            screen_buffer.push_str("\x1b[48;5;240m\x1b[37m");
-                                            screen_buffer.push(chars[i]);
-                                            screen_buffer.push_str("\x1b[0m");
-                                        } else {
-                                            screen_buffer.push(chars[i]);
+                                    let mut char_idx = 0;
+                                    for (style, text) in highlighted {
+                                        for c in text.chars() {
+                                            if char_idx >= start_col && char_idx <= end_col {
+                                                screen_buffer.push_str("\x1b[48;5;240m\x1b[37m");
+                                                screen_buffer.push(c);
+                                                screen_buffer.push_str("\x1b[0m");
+                                            } else {
+                                                screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
+                                                screen_buffer.push(c);
+                                                screen_buffer.push_str("\x1b[0m");
+                                            }
+                                            char_idx += 1;
                                         }
                                     }
                                 } else {
-                                    screen_buffer.push_str(line);
+                                    // Multi-line selection - just use syntax highlighting
+                                    for (style, text) in highlighted {
+                                        screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
+                                        screen_buffer.push_str(&text);
+                                        screen_buffer.push_str("\x1b[0m");
+                                    }
                                 }
                                 screen_buffer.push_str("\r\n");
                                 continue;
                             }
                         }
                     }
-                    screen_buffer.push_str(line);
+                    
+                    // Apply syntax highlighting to the line
+                    let highlighted = buffer.highlight_line(line_idx);
+                    for (style, text) in highlighted {
+                        screen_buffer.push_str(&Self::rgb_to_ansi(style.foreground));
+                        screen_buffer.push_str(&text);
+                        screen_buffer.push_str("\x1b[0m");
+                    }
                 }
             } else {
                 screen_buffer.push_str(&format!("\x1b[34m{:>width$} ~\x1b[0m", 
@@ -201,6 +221,10 @@ impl Renderer {
     
     pub fn force_redraw(&mut self) {
         self.needs_full_redraw = true;
+    }
+    
+    fn rgb_to_ansi(color: SyntectColor) -> String {
+        format!("\x1b[38;2;{};{};{}m", color.r, color.g, color.b)
     }
     
 

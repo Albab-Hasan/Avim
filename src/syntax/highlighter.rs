@@ -1,30 +1,42 @@
+use syntect::parsing::SyntaxSet;
+use syntect::highlighting::{ThemeSet, Style, Theme};
+use syntect::easy::HighlightLines;
 use std::path::Path;
 
+#[derive(Clone)]
 pub struct Highlighter {
-    language: Option<String>,
+    syntax_set: SyntaxSet,
+    theme: Theme,
 }
 
 impl Highlighter {
     pub fn new() -> Self {
-        Self { language: None }
+        let syntax_set = SyntaxSet::load_defaults_newlines();
+        let theme_set = ThemeSet::load_defaults();
+        let theme = theme_set.themes["base16-ocean.dark"].clone();
+        
+        Self { syntax_set, theme }
     }
-
-    pub fn detect_language(&mut self, file_path: &Path) {
-        if let Some(ext) = file_path.extension() {
-            self.language = match ext.to_str() {
-                Some("rs") => Some("rust".to_string()),
-                Some("py") => Some("python".to_string()),
-                Some("js") => Some("javascript".to_string()),
-                Some("cpp") | Some("cc") | Some("cxx") => Some("cpp".to_string()),
-                Some("c") => Some("c".to_string()),
-                Some("h") | Some("hpp") => Some("cpp".to_string()),
-                _ => None,
-            };
+    
+    pub fn highlight_line<'a>(&self, line: &'a str, syntax_name: &str) -> Vec<(Style, &'a str)> {
+        if let Some(syntax) = self.syntax_set.find_syntax_by_name(syntax_name) {
+            let mut h = HighlightLines::new(syntax, &self.theme);
+            h.highlight_line(line, &self.syntax_set).unwrap_or_default()
+        } else {
+            vec![(Style::default(), line)]
         }
     }
-
-    pub fn language(&self) -> Option<&str> {
-        self.language.as_deref()
+    
+    pub fn detect_syntax(&self, file_path: &Path) -> Option<String> {
+        if let Some(syntax) = self.syntax_set.find_syntax_for_file(file_path).ok().flatten() {
+            Some(syntax.name.clone())
+        } else {
+            None
+        }
+    }
+    
+    pub fn syntax_name(&self) -> Option<&str> {
+        None // This will be set per buffer
     }
 }
 
