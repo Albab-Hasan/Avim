@@ -8,4 +8,5 @@ pub mod command;
 pub mod syntax;
 pub mod window;
 pub mod config;
+pub mod search;
 

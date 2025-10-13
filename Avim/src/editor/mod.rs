@@ -5,6 +5,7 @@ use crate::cursor::Cursor;
 use crate::mode::{Mode, NormalMode, InsertMode, VisualMode, CommandMode};
 use crate::ui::Renderer;
 use crate::command::{execute_command, CommandAction, CommandResult};
+use crate::search::SearchState;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::io;
 
@@ -18,6 +19,9 @@ pub struct Editor {
     insert_mode: InsertMode,
     visual_mode: Option<VisualMode>,
     command_mode: CommandMode,
+    search_state: SearchState,
+    search_input: String,
+    in_search: bool,
     renderer: Renderer,
     viewport_offset: usize,
     quit: bool,
@@ -43,6 +47,9 @@ impl Editor {
             insert_mode: InsertMode::new(),
             visual_mode: None,
             command_mode: CommandMode::new(),
+            search_state: SearchState::new(),
+            search_input: String::new(),
+            in_search: false,
             renderer,
             viewport_offset: 0,
             quit: false,
@@ -53,6 +60,13 @@ impl Editor {
     pub fn run(&mut self) -> io::Result<()> {
         while !self.quit {
             self.update_viewport();
+            
+            let status_message = if self.in_search {
+                Some(format!("/{}", self.search_input))
+            } else {
+                self.message.as_deref().map(|s| s.to_string())
+            };
+
             self.renderer.render(
                 &self.buffer,
                 &self.cursor,
@@ -60,7 +74,7 @@ impl Editor {
                 self.viewport_offset,
                 &self.command_mode,
                 self.visual_mode.as_ref(),
-                self.message.as_deref(),
+                status_message.as_deref(),
             )?;
 
             if let Event::Key(key) = event::read()? {
@@ -72,13 +86,88 @@ impl Editor {
                     continue;
                 }
 
+                // Handle search input
+                if self.in_search {
+                    match key.code {
+                        KeyCode::Esc => {
+                            self.in_search = false;
+                            self.search_input.clear();
+                        }
+                        KeyCode::Enter => {
+                            self.search_state.search(&self.buffer, &self.search_input, true);
+                            if let Some((line, col)) = self.search_state.current() {
+                                self.cursor.line = line;
+                                self.cursor.col = col;
+                                self.cursor.desired_col = col;
+                                self.message = Some(format!(
+                                    "Match 1 of {} for '{}'",
+                                    self.search_state.match_count(),
+                                    self.search_input
+                                ));
+                            } else {
+                                self.message = Some(format!("Pattern not found: {}", self.search_input));
+                            }
+                            self.in_search = false;
+                            self.search_input.clear();
+                        }
+                        KeyCode::Backspace => {
+                            self.search_input.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            self.search_input.push(c);
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
                 match self.mode {
                     Mode::Normal => {
-                        if let Some(new_mode) = self.normal_mode.handle_key(key, &mut self.cursor, &mut self.buffer) {
-                            self.mode = new_mode;
-                            if let Mode::Visual(vtype) = new_mode {
-                                self.visual_mode = Some(VisualMode::new(vtype, &self.cursor));
+                        use crate::mode::NormalAction;
+                        match self.normal_mode.handle_key(key, &mut self.cursor, &mut self.buffer) {
+                            NormalAction::ModeChange(new_mode) => {
+                                self.mode = new_mode;
+                                if let Mode::Visual(vtype) = new_mode {
+                                    self.visual_mode = Some(VisualMode::new(vtype, &self.cursor));
+                                }
                             }
+                            NormalAction::StartSearch => {
+                                self.in_search = true;
+                                self.search_input.clear();
+                            }
+                            NormalAction::NextMatch => {
+                                if let Some((line, col)) = self.search_state.next_match() {
+                                    self.cursor.line = line;
+                                    self.cursor.col = col;
+                                    self.cursor.desired_col = col;
+                                    if let Some(current) = self.search_state.current_match {
+                                        self.message = Some(format!(
+                                            "Match {} of {}",
+                                            current + 1,
+                                            self.search_state.match_count()
+                                        ));
+                                    }
+                                } else {
+                                    self.message = Some("No search pattern".to_string());
+                                }
+                            }
+                            NormalAction::PrevMatch => {
+                                if let Some((line, col)) = self.search_state.prev_match() {
+                                    self.cursor.line = line;
+                                    self.cursor.col = col;
+                                    self.cursor.desired_col = col;
+                                    if let Some(current) = self.search_state.current_match {
+                                        self.message = Some(format!(
+                                            "Match {} of {}",
+                                            current + 1,
+                                            self.search_state.match_count()
+                                        ));
+                                    }
+                                } else {
+                                    self.message = Some("No search pattern".to_string());
+                                }
+                            }
+                            NormalAction::None => {}
                         }
                     }
                     Mode::Insert => {

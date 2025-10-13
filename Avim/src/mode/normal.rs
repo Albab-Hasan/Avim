@@ -9,6 +9,14 @@ pub struct NormalMode {
     yank_register: Vec<String>,
 }
 
+pub enum NormalAction {
+    None,
+    ModeChange(Mode),
+    StartSearch,
+    NextMatch,
+    PrevMatch,
+}
+
 impl NormalMode {
     pub fn new() -> Self {
         Self {
@@ -23,7 +31,7 @@ impl NormalMode {
         key: KeyEvent,
         cursor: &mut Cursor,
         buffer: &mut Buffer,
-    ) -> Option<Mode> {
+    ) -> NormalAction {
         // Handle Ctrl+r for redo
         if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
             if let Some((line, col)) = buffer.redo() {
@@ -31,7 +39,7 @@ impl NormalMode {
                 cursor.col = col;
                 cursor.desired_col = col;
             }
-            return None;
+            return NormalAction::None;
         }
 
         match key.code {
@@ -39,18 +47,18 @@ impl NormalMode {
             KeyCode::Char('j') => cursor.move_down(buffer),
             KeyCode::Char('k') => cursor.move_up(buffer),
             KeyCode::Char('l') => cursor.move_right(buffer),
-            KeyCode::Char('i') => return Some(Mode::Insert),
+            KeyCode::Char('i') => return NormalAction::ModeChange(Mode::Insert),
             KeyCode::Char('I') => {
                 cursor.move_line_start();
-                return Some(Mode::Insert);
+                return NormalAction::ModeChange(Mode::Insert);
             }
             KeyCode::Char('a') => {
                 cursor.move_right(buffer);
-                return Some(Mode::Insert);
+                return NormalAction::ModeChange(Mode::Insert);
             }
             KeyCode::Char('A') => {
                 cursor.move_line_end(buffer);
-                return Some(Mode::Insert);
+                return NormalAction::ModeChange(Mode::Insert);
             }
             KeyCode::Char('o') => {
                 cursor.move_line_end(buffer);
@@ -58,14 +66,14 @@ impl NormalMode {
                 cursor.line += 1;
                 cursor.col = 0;
                 cursor.desired_col = 0;
-                return Some(Mode::Insert);
+                return NormalAction::ModeChange(Mode::Insert);
             }
             KeyCode::Char('O') => {
                 cursor.move_line_start();
                 buffer.insert_newline(cursor.line, 0);
                 cursor.col = 0;
                 cursor.desired_col = 0;
-                return Some(Mode::Insert);
+                return NormalAction::ModeChange(Mode::Insert);
             }
             KeyCode::Char('w') => cursor.move_word_forward(buffer),
             KeyCode::Char('b') => cursor.move_word_backward(buffer),
@@ -132,10 +140,10 @@ impl NormalMode {
                 }
             }
             KeyCode::Char('v') => {
-                return Some(Mode::Visual(crate::mode::VisualType::Character));
+                return NormalAction::ModeChange(Mode::Visual(crate::mode::VisualType::Character));
             }
             KeyCode::Char('V') => {
-                return Some(Mode::Visual(crate::mode::VisualType::Line));
+                return NormalAction::ModeChange(Mode::Visual(crate::mode::VisualType::Line));
             }
             KeyCode::Char('u') => {
                 // Undo
@@ -145,14 +153,23 @@ impl NormalMode {
                     cursor.desired_col = col;
                 }
             }
+            KeyCode::Char('/') => {
+                return NormalAction::StartSearch;
+            }
+            KeyCode::Char('n') => {
+                return NormalAction::NextMatch;
+            }
+            KeyCode::Char('N') => {
+                return NormalAction::PrevMatch;
+            }
             KeyCode::Char(':') => {
-                return Some(Mode::Command);
+                return NormalAction::ModeChange(Mode::Command);
             }
             _ => {
                 self.pending_operator = None;
             }
         }
-        None
+        NormalAction::None
     }
 
     pub fn yank_register(&self) -> &[String] {

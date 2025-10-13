@@ -33,6 +33,9 @@ cargo run --release -- test.txt  # Open a file
 - `V` - Enter visual line mode
 - `u` - Undo last change
 - `Ctrl+r` - Redo last undone change
+- `/` - Start forward search (type pattern and press Enter)
+- `n` - Jump to next search match
+- `N` - Jump to previous search match
 - `:` - Enter command mode
 - `Ctrl+C` - Quit (force quit)
 

@@ -3,7 +3,7 @@ mod insert;
 mod visual;
 pub mod command;
 
-pub use normal::NormalMode;
+pub use normal::{NormalMode, NormalAction};
 pub use insert::InsertMode;
 pub use visual::{VisualMode, VisualType};
 pub use command::CommandMode;
