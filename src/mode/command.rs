@@ -25,7 +25,9 @@ impl CommandMode {
                 self.input.push(c);
             }
             KeyCode::Backspace => {
-                self.input.pop();
+                if !self.input.is_empty() {
+                    self.input.pop();
+                }
             }
             _ => {}
         }

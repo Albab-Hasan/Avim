@@ -147,34 +147,53 @@ impl Renderer {
         // Render command line or message
         execute!(self.stdout, cursor::MoveTo(0, (visible_lines + 1) as u16))?;
         
+        // Clear the command line area
+        execute!(
+            self.stdout,
+            terminal::Clear(ClearType::CurrentLine)
+        )?;
+        
         if let Mode::Command = mode {
             execute!(
                 self.stdout,
+                SetForegroundColor(Color::Yellow),
                 Print(":"),
-                Print(command_mode.input())
+                Print(command_mode.input()),
+                ResetColor
             )?;
         } else if let Some(msg) = message {
             execute!(self.stdout, Print(msg))?;
         }
 
-        // Position cursor (accounting for line numbers)
-        let screen_row = cursor.line.saturating_sub(viewport_offset);
-        let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
-        let screen_col = (cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
-        
-        // Ensure cursor is visible on screen
-        if screen_row >= visible_lines as u16 {
-            return Ok(());
+        // Position cursor
+        if let Mode::Command = mode {
+            // In command mode, position cursor at end of command input
+            let cmd_col = 1 + command_mode.input().len(); // 1 for the ':'
+            execute!(
+                self.stdout,
+                cursor::MoveTo(cmd_col as u16, (visible_lines + 1) as u16),
+                cursor::Show
+            )?;
+        } else {
+            // Normal cursor positioning in text area
+            let screen_row = cursor.line.saturating_sub(viewport_offset);
+            let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
+            let screen_col = (cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
+            
+            // Ensure cursor is visible on screen
+            if screen_row >= visible_lines {
+                return Ok(());
+            }
+            
+            // Update cursor position
+            self.last_cursor = (cursor.line, cursor.col);
+            
+            execute!(
+                self.stdout,
+                cursor::MoveTo(screen_col as u16, screen_row as u16),
+                cursor::Show
+            )?;
         }
-        
-        // Update cursor position
-        self.last_cursor = (cursor.line, cursor.col);
-        
-        execute!(
-            self.stdout,
-            cursor::MoveTo(screen_col as u16, screen_row as u16),
-            cursor::Show
-        )?;
 
         self.stdout.flush()?;
         Ok(())
