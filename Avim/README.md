@@ -14,8 +14,10 @@ Terminal-based modal text editor.
 - Status line with mode indicator and file information
 - Undo/redo (u, Ctrl+r)
 
+- Search (/, n, N)
+
 ## TODO
-- Search and replace
+- Replace functionality
 - Syntax highlighting
 - Window splits and multiple buffers
 - Configuration system
