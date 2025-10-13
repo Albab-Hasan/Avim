@@ -12,10 +12,9 @@ Terminal-based modal text editor.
 - Visual selection (character and line-wise)
 - Command mode (:w, :q, :wq, :e)
 - Status line with mode indicator and file information
+- Undo/redo (u, Ctrl+r)
 
 ## TODO
-
-- Undo/redo functionality
 - Search and replace
 - Syntax highlighting
 - Window splits and multiple buffers

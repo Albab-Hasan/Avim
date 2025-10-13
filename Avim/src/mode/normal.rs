@@ -1,7 +1,7 @@
 use crate::buffer::Buffer;
 use crate::cursor::Cursor;
 use crate::mode::Mode;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub struct NormalMode {
     pending_operator: Option<char>,
@@ -24,6 +24,16 @@ impl NormalMode {
         cursor: &mut Cursor,
         buffer: &mut Buffer,
     ) -> Option<Mode> {
+        // Handle Ctrl+r for redo
+        if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            if let Some((line, col)) = buffer.redo() {
+                cursor.line = line;
+                cursor.col = col;
+                cursor.desired_col = col;
+            }
+            return None;
+        }
+
         match key.code {
             KeyCode::Char('h') => cursor.move_left(buffer),
             KeyCode::Char('j') => cursor.move_down(buffer),
@@ -126,6 +136,14 @@ impl NormalMode {
             }
             KeyCode::Char('V') => {
                 return Some(Mode::Visual(crate::mode::VisualType::Line));
+            }
+            KeyCode::Char('u') => {
+                // Undo
+                if let Some((line, col)) = buffer.undo() {
+                    cursor.line = line;
+                    cursor.col = col;
+                    cursor.desired_col = col;
+                }
             }
             KeyCode::Char(':') => {
                 return Some(Mode::Command);

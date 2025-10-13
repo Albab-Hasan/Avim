@@ -18,10 +18,10 @@ pub struct Buffer {
 }
 
 #[derive(Clone)]
-struct BufferState {
-    lines: Vec<String>,
-    cursor_line: usize,
-    cursor_col: usize,
+pub struct BufferState {
+    pub lines: Vec<String>,
+    pub cursor_line: usize,
+    pub cursor_col: usize,
 }
 
 impl Buffer {
@@ -81,6 +81,7 @@ impl Buffer {
 
     pub fn insert_char(&mut self, line: usize, col: usize, ch: char) {
         if line < self.lines.len() {
+            self.save_state(line, col);
             self.lines[line].insert(col, ch);
             self.modified = true;
         }
@@ -88,6 +89,7 @@ impl Buffer {
 
     pub fn delete_char(&mut self, line: usize, col: usize) {
         if line < self.lines.len() && col < self.lines[line].len() {
+            self.save_state(line, col);
             self.lines[line].remove(col);
             self.modified = true;
         }
@@ -95,6 +97,7 @@ impl Buffer {
 
     pub fn insert_newline(&mut self, line: usize, col: usize) {
         if line < self.lines.len() {
+            self.save_state(line, col);
             let rest = self.lines[line].split_off(col);
             self.lines.insert(line + 1, rest);
             self.modified = true;
@@ -103,9 +106,11 @@ impl Buffer {
 
     pub fn delete_line(&mut self, line: usize) -> Option<String> {
         if line < self.lines.len() && self.lines.len() > 1 {
+            self.save_state(line, 0);
             self.modified = true;
             Some(self.lines.remove(line))
         } else if self.lines.len() == 1 {
+            self.save_state(line, 0);
             let content = self.lines[0].clone();
             self.lines[0].clear();
             self.modified = true;
@@ -134,6 +139,62 @@ impl Buffer {
 
     pub fn get_line_mut(&mut self, idx: usize) -> Option<&mut String> {
         self.lines.get_mut(idx)
+    }
+
+    fn save_state(&mut self, cursor_line: usize, cursor_col: usize) {
+        const MAX_UNDO_STACK: usize = 100;
+        
+        let state = BufferState {
+            lines: self.lines.clone(),
+            cursor_line,
+            cursor_col,
+        };
+        
+        self.undo_stack.push(state);
+        if self.undo_stack.len() > MAX_UNDO_STACK {
+            self.undo_stack.remove(0);
+        }
+        
+        // Clear redo stack on new action
+        self.redo_stack.clear();
+    }
+
+    pub fn undo(&mut self) -> Option<(usize, usize)> {
+        if let Some(state) = self.undo_stack.pop() {
+            // Save current state to redo stack
+            let current_state = BufferState {
+                lines: self.lines.clone(),
+                cursor_line: state.cursor_line,
+                cursor_col: state.cursor_col,
+            };
+            self.redo_stack.push(current_state);
+            
+            // Restore previous state
+            self.lines = state.lines;
+            self.modified = true;
+            Some((state.cursor_line, state.cursor_col))
+        } else {
+            None
+        }
+    }
+
+    pub fn redo(&mut self) -> Option<(usize, usize)> {
+        if let Some(state) = self.redo_stack.pop() {
+            // Save current state to undo stack
+            let current_state = BufferState {
+                lines: self.lines.clone(),
+                cursor_line: state.cursor_line,
+                cursor_col: state.cursor_col,
+            };
+            self.undo_stack.push(current_state);
+            
+            // Restore redo state
+            self.lines = state.lines;
+            self.modified = true;
+            Some((state.cursor_line, state.cursor_col))
+        } else {
+            None
+        }
     }
 }
 
