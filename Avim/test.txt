@@ -1,7 +1,0 @@
-Hello, this is a test file for Avim.
-You can edit this text using modal editing.
-Try using h, j, k, l to move around.
-Press i to enter insert mode.
-Press Esc to return to normal mode.
-Use :w to save and :q to quit.
-

@@ -1,9 +1,9 @@
 # Rust build artifacts
-Avim/target/
-Avim/Cargo.lock
+target/
+Cargo.lock
 
 # Test files
-Avim/test.txt
+test.txt
 
 # IDE
 .vscode/
@@ -11,4 +11,3 @@ Avim/test.txt
 *.swp
 *.swo
 *~
-
