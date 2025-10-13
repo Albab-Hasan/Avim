@@ -7,6 +7,7 @@ pub struct NormalMode {
     pending_operator: Option<char>,
     count: Option<usize>,
     yank_register: Vec<String>,
+    operator: Option<Operator>,
 }
 
 pub enum NormalAction {
@@ -17,12 +18,20 @@ pub enum NormalAction {
     PrevMatch,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum Operator {
+    Delete,
+    Change,
+    Yank,
+}
+
 impl NormalMode {
     pub fn new() -> Self {
         Self {
             pending_operator: None,
             count: None,
             yank_register: Vec::new(),
+            operator: None,
         }
     }
 
@@ -75,10 +84,55 @@ impl NormalMode {
                 cursor.desired_col = 0;
                 return NormalAction::ModeChange(Mode::Insert);
             }
-            KeyCode::Char('w') => cursor.move_word_forward(buffer),
+            KeyCode::Char('w') => {
+                if let Some(op) = self.operator {
+                    // Operator with motion (dw, cw, yw)
+                    let start_col = cursor.col;
+                    cursor.move_word_forward(buffer);
+                    let end_col = cursor.col;
+                    
+                    if let Some(line) = buffer.get_line_mut(cursor.line) {
+                        if start_col < line.len() {
+                            let deleted: String = line.drain(start_col..end_col.min(line.len())).collect();
+                            if op == Operator::Yank || op == Operator::Change {
+                                self.yank_register = vec![deleted];
+                            }
+                        }
+                    }
+                    cursor.col = start_col;
+                    cursor.desired_col = start_col;
+                    self.operator = None;
+                    
+                    if op == Operator::Change {
+                        return NormalAction::ModeChange(Mode::Insert);
+                    }
+                } else {
+                    cursor.move_word_forward(buffer);
+                }
+            }
             KeyCode::Char('b') => cursor.move_word_backward(buffer),
             KeyCode::Char('0') => cursor.move_line_start(),
-            KeyCode::Char('$') => cursor.move_line_end(buffer),
+            KeyCode::Char('$') => {
+                if let Some(op) = self.operator {
+                    // Operator to end of line (d$, c$, y$)
+                    let start_col = cursor.col;
+                    if let Some(line) = buffer.get_line_mut(cursor.line) {
+                        if start_col < line.len() {
+                            let deleted: String = line.drain(start_col..).collect();
+                            if op == Operator::Yank || op == Operator::Change {
+                                self.yank_register = vec![deleted];
+                            }
+                        }
+                    }
+                    self.operator = None;
+                    
+                    if op == Operator::Change {
+                        return NormalAction::ModeChange(Mode::Insert);
+                    }
+                } else {
+                    cursor.move_line_end(buffer);
+                }
+            }
             KeyCode::Char('g') => {
                 // Handle gg
                 if self.pending_operator == Some('g') {
@@ -109,7 +163,11 @@ impl NormalMode {
                     }
                     self.pending_operator = None;
                     return NormalAction::ModeChange(Mode::Insert);
+                } else if self.operator.is_some() {
+                    // Already have an operator, ignore
+                    self.operator = None;
                 } else {
+                    self.operator = Some(Operator::Change);
                     self.pending_operator = Some('c');
                 }
             }
@@ -120,7 +178,12 @@ impl NormalMode {
                         self.yank_register = vec![line];
                     }
                     self.pending_operator = None;
+                    self.operator = None;
+                } else if self.operator.is_some() {
+                    // Already have an operator, ignore
+                    self.operator = None;
                 } else {
+                    self.operator = Some(Operator::Delete);
                     self.pending_operator = Some('d');
                 }
             }
@@ -131,7 +194,12 @@ impl NormalMode {
                         self.yank_register = vec![line.clone()];
                     }
                     self.pending_operator = None;
+                    self.operator = None;
+                } else if self.operator.is_some() {
+                    // Already have an operator, ignore
+                    self.operator = None;
                 } else {
+                    self.operator = Some(Operator::Yank);
                     self.pending_operator = Some('y');
                 }
             }
@@ -186,6 +254,7 @@ impl NormalMode {
             }
             _ => {
                 self.pending_operator = None;
+                self.operator = None;
             }
         }
         NormalAction::None

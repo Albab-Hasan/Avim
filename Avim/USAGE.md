@@ -20,8 +20,14 @@ cargo run --release -- test.txt  # Open a file
 - `G` - Go to last line
 - `x` - Delete character under cursor
 - `dd` - Delete current line
+- `dw` - Delete from cursor to end of word
+- `d$` - Delete from cursor to end of line
 - `yy` - Yank (copy) current line
+- `yw` - Yank word
+- `y$` - Yank to end of line
 - `cc` - Change (delete and enter insert mode) current line
+- `cw` - Change word
+- `c$` - Change to end of line
 - `p` - Paste below current line
 - `P` - Paste above current line
 - `J` - Join current line with next line
