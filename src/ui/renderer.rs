@@ -75,23 +75,22 @@ impl Renderer {
             self.needs_full_redraw = false;
         }
 
-        // Render buffer lines
+        // Render buffer lines with optimized output
         let visible_lines = (height as usize).saturating_sub(2);
         let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
+        
+        // Build entire screen output in memory first
+        let mut screen_buffer = String::with_capacity(visible_lines * 100);
         
         for row in 0..visible_lines {
             let line_idx = viewport_offset + row;
             
-            execute!(self.stdout, cursor::MoveTo(0, row as u16))?;
-
             if line_idx < buffer.line_count() {
-                // Render line number
-                execute!(
-                    self.stdout,
-                    SetForegroundColor(Color::DarkYellow),
-                    Print(format!("{:>width$} ", line_idx + 1, width = line_num_width as usize - 1)),
-                    ResetColor
-                )?;
+                // Line number
+                screen_buffer.push_str(&format!("\x1b[33m{:>width$} \x1b[0m", 
+                    line_idx + 1, 
+                    width = line_num_width as usize - 1
+                ));
                 
                 if let Some(line) = buffer.get_line(line_idx) {
                     // Check if this line is in visual selection
@@ -101,35 +100,45 @@ impl Renderer {
                             
                             if line_idx >= start_line && line_idx <= end_line {
                                 // Highlight selected portion
+                                let chars: Vec<char> = line.chars().collect();
                                 if start_line == end_line {
-                                    // Single line selection
-                                    self.render_line_with_highlight(line, start_col, end_col)?;
-                                    continue;
-                                } else if line_idx == start_line {
-                                    self.render_line_with_highlight(line, start_col, line.len())?;
-                                    continue;
-                                } else if line_idx == end_line {
-                                    self.render_line_with_highlight(line, 0, end_col)?;
-                                    continue;
+                                    for i in 0..chars.len() {
+                                        if i >= start_col && i <= end_col {
+                                            screen_buffer.push_str("\x1b[48;5;240m\x1b[37m");
+                                            screen_buffer.push(chars[i]);
+                                            screen_buffer.push_str("\x1b[0m");
+                                        } else {
+                                            screen_buffer.push(chars[i]);
+                                        }
+                                    }
                                 } else {
-                                    self.render_line_with_highlight(line, 0, line.len())?;
-                                    continue;
+                                    screen_buffer.push_str(line);
                                 }
+                                screen_buffer.push_str("\r\n");
+                                continue;
                             }
                         }
                     }
-                    
-                    execute!(self.stdout, Print(line))?;
+                    screen_buffer.push_str(line);
                 }
             } else {
-                execute!(
-                    self.stdout,
-                    SetForegroundColor(Color::DarkBlue),
-                    Print(format!("{:>width$} ~", "", width = line_num_width as usize - 1)),
-                    ResetColor
-                )?;
+                screen_buffer.push_str(&format!("\x1b[34m{:>width$} ~\x1b[0m", 
+                    "", 
+                    width = line_num_width as usize - 1
+                ));
+            }
+            
+            if row < visible_lines - 1 {
+                screen_buffer.push_str("\r\n");
             }
         }
+        
+        // Write entire screen in one go
+        execute!(
+            self.stdout,
+            cursor::MoveTo(0, 0),
+            Print(&screen_buffer)
+        )?;
 
         // Render status line
         let status_line = StatusLine::new(mode, buffer, cursor);
@@ -170,6 +179,7 @@ impl Renderer {
         self.needs_full_redraw = true;
     }
 
+    #[allow(dead_code)]
     fn render_line_with_highlight(&mut self, line: &str, start: usize, end: usize) -> io::Result<()> {
         let chars: Vec<char> = line.chars().collect();
         
