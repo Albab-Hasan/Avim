@@ -29,7 +29,7 @@ impl InsertMode {
                 if let Some(closing_char) = Self::get_closing_char(c) {
                     let current_line = buffer.get_line(cursor.line).map_or("", |v| v);
                     
-                    // Check if we're typing a closing bracket that matches an auto-inserted one
+                    // Check if user is typing a closing bracket that matches an auto-inserted one
                     if cursor.col < current_line.len() && current_line.chars().nth(cursor.col) == Some(closing_char) {
                         // Just move cursor past the existing closing bracket
                         cursor.col += 1;

@@ -15,6 +15,7 @@ pub enum NormalAction {
     StartSearch(bool), // true for forward, false for backward
     NextMatch,
     PrevMatch,
+    WindowCommand,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -47,6 +48,11 @@ impl NormalMode {
                 cursor.desired_col = col;
             }
             return NormalAction::None;
+        }
+
+        // Handle Ctrl+w for window commands
+        if key.code == KeyCode::Char('w') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            return NormalAction::WindowCommand;
         }
 
 
@@ -272,6 +278,27 @@ impl NormalMode {
             }
         }
         NormalAction::None
+    }
+
+    pub fn handle_window_command(&mut self, key: KeyEvent) -> Option<String> {
+        match key.code {
+            KeyCode::Char('h') => Some("navigate_h".to_string()),
+            KeyCode::Char('j') => Some("navigate_j".to_string()),
+            KeyCode::Char('k') => Some("navigate_k".to_string()),
+            KeyCode::Char('l') => Some("navigate_l".to_string()),
+            KeyCode::Char('w') => Some("next_window".to_string()),
+            KeyCode::Char('W') => Some("prev_window".to_string()),
+            KeyCode::Char('s') => Some("split_horizontal".to_string()),
+            KeyCode::Char('v') => Some("split_vertical".to_string()),
+            KeyCode::Char('c') | KeyCode::Char('q') => Some("close_window".to_string()),
+            KeyCode::Char('o') => Some("close_other_windows".to_string()),
+            KeyCode::Char('+') => Some("increase_height".to_string()),
+            KeyCode::Char('-') => Some("decrease_height".to_string()),
+            KeyCode::Char('>') => Some("increase_width".to_string()),
+            KeyCode::Char('<') => Some("decrease_width".to_string()),
+            KeyCode::Char('=') => Some("equal_size".to_string()),
+            _ => None,
+        }
     }
 
     pub fn yank_register(&self) -> &[String] {

@@ -16,7 +16,7 @@ impl CommandExecutor {
     }
 
     fn register_default_commands(&mut self) {
-        // Commands will be registered here as we implement them
+        // Commands will be registered here
     }
 
     pub fn register_command(&mut self, name: &str, func: CommandFn) {

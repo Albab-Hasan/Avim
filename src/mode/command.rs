@@ -81,6 +81,19 @@ pub fn execute_command(cmd: &str, buffer: &mut Buffer) -> io::Result<CommandActi
             let path = cmd[2..].trim();
             Ok(CommandAction::Edit(path.to_string()))
         }
+        // Window management commands
+        "split" | "sp" => Ok(CommandAction::SplitHorizontal(None)),
+        "vsplit" | "vs" => Ok(CommandAction::SplitVertical(None)),
+        "close" | "clo" => Ok(CommandAction::CloseWindow),
+        "only" | "on" => Ok(CommandAction::CloseOtherWindows),
+        _ if cmd.starts_with("split ") || cmd.starts_with("sp ") => {
+            let path = cmd.split_whitespace().nth(1).unwrap_or("").to_string();
+            Ok(CommandAction::SplitHorizontal(Some(path)))
+        }
+        _ if cmd.starts_with("vsplit ") || cmd.starts_with("vs ") => {
+            let path = cmd.split_whitespace().nth(1).unwrap_or("").to_string();
+            Ok(CommandAction::SplitVertical(Some(path)))
+        }
         _ => Ok(CommandAction::Error(format!("Unknown command: {}", cmd))),
     }
 }
@@ -90,6 +103,10 @@ pub enum CommandAction {
     Quit,
     ForceQuit,
     Edit(String),
+    SplitHorizontal(Option<String>),
+    SplitVertical(Option<String>),
+    CloseWindow,
+    CloseOtherWindows,
     Error(String),
 }
 

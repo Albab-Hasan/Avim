@@ -1,19 +1,18 @@
 mod state;
 
 use crate::buffer::Buffer;
-use crate::cursor::Cursor;
 use crate::mode::{Mode, NormalMode, InsertMode, VisualMode, CommandMode};
 use crate::ui::Renderer;
 use crate::command::{execute_command, CommandAction, CommandResult};
 use crate::search::SearchState;
+use crate::window::WindowManager;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::io;
 
 pub use state::EditorState;
 
 pub struct Editor {
-    buffer: Buffer,
-    cursor: Cursor,
+    window_manager: WindowManager,
     mode: Mode,
     normal_mode: NormalMode,
     visual_mode: Option<VisualMode>,
@@ -22,7 +21,6 @@ pub struct Editor {
     search_input: String,
     in_search: bool,
     renderer: Renderer,
-    viewport_offset: usize,
     quit: bool,
     message: Option<String>,
 }
@@ -38,15 +36,10 @@ impl Editor {
         let mut renderer = Renderer::new()?;
         renderer.enter()?;
 
-        let mut cursor = Cursor::new();
-        // Ensure cursor is within bounds
-        if let Some(first_line) = buffer.get_line(0) {
-            cursor.col = cursor.col.min(first_line.len());
-        }
+        let window_manager = WindowManager::new(buffer);
 
         Ok(Self {
-            buffer,
-            cursor,
+            window_manager,
             mode: Mode::Normal,
             normal_mode: NormalMode::new(),
             visual_mode: None,
@@ -55,7 +48,6 @@ impl Editor {
             search_input: String::new(),
             in_search: false,
             renderer,
-            viewport_offset: 0,
             quit: false,
             message: None,
         })
@@ -73,10 +65,8 @@ impl Editor {
             };
 
             self.renderer.render(
-                &self.buffer,
-                &self.cursor,
+                &self.window_manager,
                 &self.mode,
-                self.viewport_offset,
                 &self.command_mode,
                 self.visual_mode.as_ref(),
                 status_message.as_deref(),
@@ -105,11 +95,13 @@ impl Editor {
                         }
                         KeyCode::Enter => {
                             let forward = self.search_state.forward;
-                            self.search_state.search(&self.buffer, &self.search_input, forward);
+                            self.search_state.search(self.window_manager.get_active_buffer(), &self.search_input, forward);
                             if let Some((line, col)) = self.search_state.current() {
-                                self.cursor.line = line;
-                                self.cursor.col = col;
-                                self.cursor.desired_col = col;
+                                let mut cursor = self.window_manager.get_active_cursor();
+                                cursor.line = line;
+                                cursor.col = col;
+                                cursor.desired_col = col;
+                                self.window_manager.set_active_cursor(cursor);
                                 self.message = Some(format!(
                                     "Match 1 of {} for '{}'",
                                     self.search_state.match_count(),
@@ -135,11 +127,12 @@ impl Editor {
                 match self.mode {
                     Mode::Normal => {
                         use crate::mode::NormalAction;
-                        match self.normal_mode.handle_key(key, &mut self.cursor, &mut self.buffer) {
+                        let mut cursor = self.window_manager.get_active_cursor();
+                        match self.normal_mode.handle_key(key, &mut cursor, self.window_manager.get_active_buffer_mut()) {
                             NormalAction::ModeChange(new_mode) => {
                                 self.mode = new_mode;
                                 if let Mode::Visual(vtype) = new_mode {
-                                    self.visual_mode = Some(VisualMode::new(vtype, &self.cursor));
+                                    self.visual_mode = Some(VisualMode::new(vtype, &cursor));
                                 }
                             }
                             NormalAction::StartSearch(forward) => {
@@ -149,9 +142,9 @@ impl Editor {
                             }
                             NormalAction::NextMatch => {
                                 if let Some((line, col)) = self.search_state.next_match() {
-                                    self.cursor.line = line;
-                                    self.cursor.col = col;
-                                    self.cursor.desired_col = col;
+                                    cursor.line = line;
+                                    cursor.col = col;
+                                    cursor.desired_col = col;
                                     if let Some(current) = self.search_state.current_match {
                                         self.message = Some(format!(
                                             "Match {} of {}",
@@ -165,9 +158,9 @@ impl Editor {
                             }
                             NormalAction::PrevMatch => {
                                 if let Some((line, col)) = self.search_state.prev_match() {
-                                    self.cursor.line = line;
-                                    self.cursor.col = col;
-                                    self.cursor.desired_col = col;
+                                    cursor.line = line;
+                                    cursor.col = col;
+                                    cursor.desired_col = col;
                                     if let Some(current) = self.search_state.current_match {
                                         self.message = Some(format!(
                                             "Match {} of {}",
@@ -179,31 +172,73 @@ impl Editor {
                                     self.message = Some("No search pattern".to_string());
                                 }
                             }
+                            NormalAction::WindowCommand => {
+                                // Read next key for window command
+                                if let Event::Key(next_key) = event::read()? {
+                                    if let Some(cmd) = self.normal_mode.handle_window_command(next_key) {
+                                        match cmd.as_str() {
+                                            "next_window" => self.window_manager.next_window(),
+                                            "prev_window" => self.window_manager.prev_window(),
+                                            "split_horizontal" => {
+                                                if let Err(e) = self.window_manager.split_horizontal(None) {
+                                                    self.message = Some(e);
+                                                }
+                                            }
+                                            "split_vertical" => {
+                                                if let Err(e) = self.window_manager.split_vertical(None) {
+                                                    self.message = Some(e);
+                                                }
+                                            }
+                                            "close_window" => {
+                                                if let Err(e) = self.window_manager.close_window() {
+                                                    self.message = Some(e);
+                                                }
+                                            }
+                                            "close_other_windows" => {
+                                                self.message = Some("Close other windows not yet implemented".to_string());
+                                            }
+                                            "increase_height" | "decrease_height" | "increase_width" | "decrease_width" | "equal_size" => {
+                                                self.message = Some("Window resizing not yet implemented".to_string());
+                                            }
+                                            _ if cmd.starts_with("navigate_") => {
+                                                let direction = cmd.chars().last().unwrap_or('h');
+                                                self.window_manager.navigate_to_window(direction);
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                            }
                             NormalAction::None => {}
                         }
+                        self.window_manager.set_active_cursor(cursor);
                     }
                     Mode::Insert => {
-                        if let Some(new_mode) = InsertMode::handle_key(key, &mut self.cursor, &mut self.buffer) {
+                        let mut cursor = self.window_manager.get_active_cursor();
+                        if let Some(new_mode) = InsertMode::handle_key(key, &mut cursor, self.window_manager.get_active_buffer_mut()) {
                             self.mode = new_mode;
                         }
+                        self.window_manager.set_active_cursor(cursor);
                     }
                     Mode::Visual(_) => {
                         if let Some(ref mut visual) = self.visual_mode {
-                            if let Some(new_mode) = visual.handle_key(key, &mut self.cursor, &mut self.buffer) {
+                            let mut cursor = self.window_manager.get_active_cursor();
+                            if let Some(new_mode) = visual.handle_key(key, &mut cursor, self.window_manager.get_active_buffer_mut()) {
                                 self.mode = new_mode;
                                 self.visual_mode = None;
                             }
+                            self.window_manager.set_active_cursor(cursor);
                         }
                     }
                     Mode::Command => {
                         if let Some(result) = self.command_mode.handle_key(key) {
                             match result {
                                 CommandResult::Execute(cmd) => {
-                                    match execute_command(&cmd, &mut self.buffer) {
+                                    match execute_command(&cmd, self.window_manager.get_active_buffer_mut()) {
                                         Ok(action) => {
                                             match action {
                                                 CommandAction::Quit => {
-                                                    if self.buffer.is_modified() {
+                                                    if self.window_manager.get_active_buffer().is_modified() {
                                                         self.message = Some("No write since last change (use :q! to override)".to_string());
                                                     } else {
                                                         self.quit = true;
@@ -215,13 +250,38 @@ impl Editor {
                                                 CommandAction::Edit(path) => {
                                                     match Buffer::from_file(&path) {
                                                         Ok(new_buffer) => {
-                                                            self.buffer = new_buffer;
-                                                            self.cursor = Cursor::new();
+                                                            // Replace current buffer with new one
+                                                            let buffer_count = self.window_manager.get_buffers().len();
+                                                            self.window_manager.get_buffers_mut().push(new_buffer);
+                                                            let current_window = self.window_manager.get_active_window_mut();
+                                                            current_window.buffer_id = buffer_count;
+                                                            current_window.cursor_line = 0;
+                                                            current_window.cursor_col = 0;
+                                                            current_window.viewport_offset = 0;
                                                         }
                                                         Err(e) => {
                                                             self.message = Some(format!("Error: {}", e));
                                                         }
                                                     }
+                                                }
+                                                CommandAction::SplitHorizontal(file_path) => {
+                                                    if let Err(e) = self.window_manager.split_horizontal(file_path.as_deref()) {
+                                                        self.message = Some(e);
+                                                    }
+                                                }
+                                                CommandAction::SplitVertical(file_path) => {
+                                                    if let Err(e) = self.window_manager.split_vertical(file_path.as_deref()) {
+                                                        self.message = Some(e);
+                                                    }
+                                                }
+                                                CommandAction::CloseWindow => {
+                                                    if let Err(e) = self.window_manager.close_window() {
+                                                        self.message = Some(e);
+                                                    }
+                                                }
+                                                CommandAction::CloseOtherWindows => {
+                                                    // TODO: Implement close other windows
+                                                    self.message = Some("Close other windows not yet implemented".to_string());
                                                 }
                                                 CommandAction::Error(msg) => {
                                                     self.message = Some(msg);
@@ -253,11 +313,13 @@ impl Editor {
 
     fn update_viewport(&mut self) {
         let terminal_height = self.renderer.height().saturating_sub(2); // Leave room for status line
+        let cursor = self.window_manager.get_active_cursor();
+        let viewport_offset = self.window_manager.get_viewport_offset();
         
-        if self.cursor.line < self.viewport_offset {
-            self.viewport_offset = self.cursor.line;
-        } else if self.cursor.line >= self.viewport_offset + terminal_height {
-            self.viewport_offset = self.cursor.line - terminal_height + 1;
+        if cursor.line < viewport_offset {
+            self.window_manager.set_viewport_offset(cursor.line);
+        } else if cursor.line >= viewport_offset + terminal_height {
+            self.window_manager.set_viewport_offset(cursor.line - terminal_height + 1);
         }
     }
 }

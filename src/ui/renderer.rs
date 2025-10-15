@@ -1,5 +1,3 @@
-use crate::buffer::Buffer;
-use crate::cursor::Cursor;
 use crate::mode::{Mode, VisualMode};
 use crate::command::CommandMode;
 use crate::ui::StatusLine;
@@ -54,10 +52,8 @@ impl Renderer {
 
     pub fn render(
         &mut self,
-        buffer: &Buffer,
-        cursor: &Cursor,
+        window_manager: &crate::window::WindowManager,
         mode: &Mode,
-        viewport_offset: usize,
         command_mode: &CommandMode,
         visual_mode: Option<&VisualMode>,
         message: Option<&str>,
@@ -65,17 +61,24 @@ impl Renderer {
         // Update terminal size
         let (width, height) = terminal::size()?;
         if self.width != width || self.height != height {
-            self.width = width;
-            self.height = height;
+        self.width = width;
+        self.height = height;
             self.needs_full_redraw = true;
         }
 
         // Always clear screen to ensure clean rendering
         execute!(self.stdout, terminal::Clear(ClearType::All))?;
 
-        // Render buffer lines with optimized output
+        // Get active window info
+        let _active_window = window_manager.get_active_window();
+        let active_buffer = window_manager.get_active_buffer();
+        let active_cursor = window_manager.get_active_cursor();
+        let viewport_offset = window_manager.get_viewport_offset();
+
+        // For now, render only the active window (single window mode)
+        // TODO: Implement multi-window rendering with borders
         let visible_lines = (height as usize).saturating_sub(2);
-        let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
+        let line_num_width = (active_buffer.line_count().to_string().len() + 1) as u16;
         
         // Build entire screen output in memory first
         let mut screen_buffer = String::with_capacity(visible_lines * 100);
@@ -83,22 +86,22 @@ impl Renderer {
         for row in 0..visible_lines {
             let line_idx = viewport_offset + row;
             
-            if line_idx < buffer.line_count() {
+            if line_idx < active_buffer.line_count() {
                 // Line number
                 screen_buffer.push_str(&format!("\x1b[33m{:>width$} \x1b[0m", 
                     line_idx + 1, 
                     width = line_num_width as usize - 1
                 ));
                 
-                if let Some(line) = buffer.get_line(line_idx) {
+                if let Some(line) = active_buffer.get_line(line_idx) {
                     // Check if this line is in visual selection
                     if let Some(visual) = visual_mode {
                         if let Mode::Visual(_) = mode {
-                            let (start_line, start_col, end_line, end_col) = visual.get_selection(cursor);
+                            let (start_line, start_col, end_line, end_col) = visual.get_selection(&active_cursor);
                             
                             if line_idx >= start_line && line_idx <= end_line {
                                 // Highlight selected portion with syntax highlighting
-                                let highlighted = buffer.highlight_line(line_idx);
+                                let highlighted = active_buffer.highlight_line(line_idx);
                                 let _chars: Vec<char> = line.chars().collect();
                                 if start_line == end_line {
                                     let mut char_idx = 0;
@@ -131,13 +134,13 @@ impl Renderer {
                     }
                     
                     // Apply syntax highlighting to the line
-                    let highlighted = buffer.highlight_line(line_idx);
+                    let highlighted = active_buffer.highlight_line(line_idx);
                     if highlighted.is_empty() {
                         // Fallback for empty lines or no highlighting
                         screen_buffer.push_str(line);
                     } else {
                         // Ensure we're using the current line content
-                        let current_line = buffer.get_line(line_idx).map_or("", |v| v);
+                        let current_line = active_buffer.get_line(line_idx).map_or("", |v| v);
                         let mut char_pos = 0;
                         let mut bracket_style = None;
                         
@@ -190,7 +193,7 @@ impl Renderer {
         )?;
 
         // Render status line
-        let status_line = StatusLine::new(mode, buffer, cursor);
+                  let status_line = StatusLine::new(mode, active_buffer, &active_cursor);
         self.render_status_line(&status_line, visible_lines as u16)?;
 
         // Render command line or message
@@ -223,31 +226,31 @@ impl Renderer {
                 cursor::MoveTo(cmd_col as u16, (visible_lines + 1) as u16),
                 cursor::Show
             )?;
-        } else {
-            // Normal cursor positioning in text area
-            let screen_row = cursor.line.saturating_sub(viewport_offset);
-            let line_num_width = (buffer.line_count().to_string().len() + 1) as u16;
-            let screen_col = (cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
-            
-            // Ensure cursor is visible on screen
-            if screen_row >= visible_lines {
-                return Ok(());
-            }
-            
-            // Update cursor position
-            self.last_cursor = (cursor.line, cursor.col);
-            
-            execute!(
-                self.stdout,
-                cursor::MoveTo(screen_col as u16, screen_row as u16),
-                cursor::Show
-            )?;
-        }
+                  } else {
+                      // Normal cursor positioning in text area
+                      let screen_row = active_cursor.line.saturating_sub(viewport_offset);
+                      let line_num_width = (active_buffer.line_count().to_string().len() + 1) as u16;
+                      let screen_col = (active_cursor.col + line_num_width as usize).min((width as usize).saturating_sub(1));
+                      
+                      // Ensure cursor is visible on screen
+                      if screen_row >= visible_lines {
+                          return Ok(());
+                      }
+                      
+                      // Update cursor position
+                      self.last_cursor = (active_cursor.line, active_cursor.col);
+        
+        execute!(
+            self.stdout,
+            cursor::MoveTo(screen_col as u16, screen_row as u16),
+            cursor::Show
+        )?;
+                  }
 
         self.stdout.flush()?;
         Ok(())
     }
-    
+
     pub fn force_redraw(&mut self) {
         self.needs_full_redraw = true;
     }

@@ -1,6 +1,8 @@
 mod split;
+mod manager;
 
-pub use split::{Split, SplitType, WindowLayout};
+pub use split::{Split, SplitType, WindowLayout, LayoutNode};
+pub use manager::{WindowManager, WindowBounds};
 
 pub struct Window {
     pub buffer_id: usize,
