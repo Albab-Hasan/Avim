@@ -75,9 +75,27 @@ impl Renderer {
         let active_cursor = window_manager.get_active_cursor();
         let viewport_offset = window_manager.get_viewport_offset();
 
-        // For now, render only the active window (single window mode)
-        // TODO: Implement multi-window rendering with borders
-        let visible_lines = (height as usize).saturating_sub(2);
+        // Check if we have multiple windows and show indicator
+        let window_count = window_manager.get_window_count();
+        if window_count > 1 {
+            // Show window indicator at top
+            execute!(
+                self.stdout,
+                cursor::MoveTo(0, 0),
+                SetForegroundColor(Color::Yellow),
+                Print(format!("Windows: {} (Active: {}) - Use Ctrl+w to navigate", 
+                    window_count, 
+                    window_manager.get_active_window().buffer_id + 1
+                )),
+                ResetColor
+            )?;
+        }
+
+        let visible_lines = if window_count > 1 {
+            (height as usize).saturating_sub(3) // Account for window indicator
+        } else {
+            (height as usize).saturating_sub(2) // Normal mode
+        };
         let line_num_width = (active_buffer.line_count().to_string().len() + 1) as u16;
         
         // Build entire screen output in memory first
@@ -193,11 +211,21 @@ impl Renderer {
         )?;
 
         // Render status line
-                  let status_line = StatusLine::new(mode, active_buffer, &active_cursor);
-        self.render_status_line(&status_line, visible_lines as u16)?;
+        let status_line = StatusLine::new(mode, active_buffer, &active_cursor);
+        let status_row = if window_count > 1 {
+            visible_lines + 1 // Account for window indicator
+        } else {
+            visible_lines
+        };
+        self.render_status_line(&status_line, status_row as u16)?;
 
         // Render command line or message
-        execute!(self.stdout, cursor::MoveTo(0, (visible_lines + 1) as u16))?;
+        let cmd_line_row = if window_count > 1 {
+            visible_lines + 2 // Account for window indicator
+        } else {
+            visible_lines + 1
+        };
+        execute!(self.stdout, cursor::MoveTo(0, cmd_line_row as u16))?;
         
         // Clear the command line area
         execute!(
@@ -221,9 +249,14 @@ impl Renderer {
         if let Mode::Command = mode {
             // In command mode, position cursor at end of command input
             let cmd_col = 1 + command_mode.input().len(); // 1 for the ':'
+            let cmd_row = if window_count > 1 {
+                visible_lines + 2 // Account for window indicator
+            } else {
+                visible_lines + 1
+            };
             execute!(
                 self.stdout,
-                cursor::MoveTo(cmd_col as u16, (visible_lines + 1) as u16),
+                cursor::MoveTo(cmd_col as u16, cmd_row as u16),
                 cursor::Show
             )?;
                   } else {
@@ -237,12 +270,19 @@ impl Renderer {
                           return Ok(());
                       }
                       
+                      // Adjust for window indicator if multiple windows
+                      let adjusted_row = if window_count > 1 {
+                          screen_row + 1
+                      } else {
+                          screen_row
+                      };
+                      
                       // Update cursor position
                       self.last_cursor = (active_cursor.line, active_cursor.col);
         
         execute!(
             self.stdout,
-            cursor::MoveTo(screen_col as u16, screen_row as u16),
+            cursor::MoveTo(screen_col as u16, adjusted_row as u16),
             cursor::Show
         )?;
                   }

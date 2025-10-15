@@ -156,7 +156,9 @@ impl WindowManager {
 
     fn calculate_window_bounds(&mut self) {
         if let Some(ref root) = self.layout_root {
-            Self::calculate_bounds_recursive(&mut self.window_bounds, root, 0, 0, 80, 24); // Default terminal size
+            // Use default terminal size for now
+            let (width, height) = (80, 24);
+            Self::calculate_bounds_recursive(&mut self.window_bounds, root, 0, 0, width as usize, height as usize);
         }
     }
 
