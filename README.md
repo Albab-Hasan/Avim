@@ -54,6 +54,36 @@ def greet(name):
 # - Smart bracket deletion with Backspace
 ```
 
+## Window Splits Example
+
+```bash
+# Start with a file
+avim main.rs
+
+# Split horizontally to work on multiple files
+:split helper.rs
+
+# Or use Ctrl+w s for horizontal split
+# Ctrl+w v for vertical split
+
+# Navigate between windows
+Ctrl+w w    # Cycle through windows
+Ctrl+w h    # Move to left window
+Ctrl+w j    # Move to window below
+Ctrl+w k    # Move to window above  
+Ctrl+w l    # Move to right window
+
+# Close current window
+:close
+# Or Ctrl+w c
+
+# Each window maintains its own:
+# - Cursor position
+# - Viewport (scroll position)
+# - Buffer (file content)
+# - Syntax highlighting
+```
+
 ## Implemented Features
 
 ### Core Editor Features
@@ -72,6 +102,13 @@ def greet(name):
 - Join lines (J)
 
 ### Advanced Features
+- **Window Splits**: Full Vim-like window management system
+  - Horizontal splits (`:split` or `Ctrl+w s`)
+  - Vertical splits (`:vsplit` or `Ctrl+w v`)
+  - Window navigation (`Ctrl+w h/j/k/l` or `Ctrl+w w/W`)
+  - Close windows (`:close` or `Ctrl+w c/q`)
+  - Each window maintains its own buffer, cursor, and viewport
+  - Buffer sharing between windows (same file, different positions)
 - **Syntax Highlighting**: Full syntax highlighting using syntect with true color (24-bit RGB) support
   - Supports Rust, Python, JavaScript, C/C++, and many other languages
   - Automatic language detection from file extensions
@@ -152,6 +189,26 @@ def greet(name):
 - `:wq` or `:x` - Save and quit
 - `:w filename` - Save as filename
 - `:e filename` - Edit a different file
+- `:split` or `:sp` - Split window horizontally
+- `:vsplit` or `:vs` - Split window vertically
+- `:split filename` - Split and open file horizontally
+- `:vsplit filename` - Split and open file vertically
+- `:close` or `:clo` - Close current window
+- `:only` or `:on` - Close all windows except current
+
+### Window Management (Ctrl+w Commands)
+- `Ctrl+w s` - Split window horizontally
+- `Ctrl+w v` - Split window vertically
+- `Ctrl+w h/j/k/l` - Navigate to window in direction
+- `Ctrl+w w` - Cycle to next window
+- `Ctrl+w W` - Cycle to previous window
+- `Ctrl+w c` or `Ctrl+w q` - Close current window
+- `Ctrl+w o` - Close other windows (keep only current)
+- `Ctrl+w +` - Increase window height
+- `Ctrl+w -` - Decrease window height
+- `Ctrl+w >` - Increase window width
+- `Ctrl+w <` - Decrease window width
+- `Ctrl+w =` - Equal size all windows
 
 ## Technical Details
 
@@ -175,7 +232,8 @@ def greet(name):
 
 ## TODO
 
-- Window splits and multiple buffers
+- Multi-window rendering with borders and separators
+- Window resizing commands (Ctrl+w +/-/</>)
 - Configuration system with themes and keybindings
 - Advanced text objects and motions
 - Macros and registers
